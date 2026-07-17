@@ -2,7 +2,7 @@ name: Release
 
 on:
   push:
-    tags: ["v*"]
+    branches: [main]
 
 permissions:
   contents: write
@@ -43,10 +43,13 @@ jobs:
           </plist>
           EOF
           codesign --force --sign - "$APP.app/Contents/MacOS/$APP"
-          ditto -c -k --keepParent "$APP.app" "YtWav-${GITHUB_REF_NAME}.zip"
+          ditto -c -k --keepParent "$APP.app" "YtWav.zip"
 
-      - name: Create release
+      - name: Update "latest" release
         uses: softprops/action-gh-release@v2
         with:
-          files: YtWav-*.zip
-          generate_release_notes: true
+          tag_name: latest
+          name: Latest build
+          body: "Built from ${{ github.sha }}"
+          files: YtWav.zip
+          prerelease: false

@@ -39,17 +39,11 @@ brew install ffmpeg
 
 ## Install from a release
 
-Download `YtWav-vX.zip` from Releases, unzip, then strip the quarantine flag (the app is ad-hoc signed, not notarized, so macOS blocks it otherwise):
+Download `YtWav.zip` from the [latest release](../../releases/latest), unzip, then strip the quarantine flag (the app is ad-hoc signed, not notarized, so macOS blocks it otherwise):
 
 ```sh
 xattr -cr YtWav.app
 open YtWav.app
-```
-
-Releases are built automatically by GitHub Actions when a `v*` tag is pushed:
-
-```sh
-git tag v1.0 && git push origin v1.0
 ```
 
 ## Build & run
