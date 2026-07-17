@@ -29,12 +29,22 @@ struct PanelView: View {
             HStack(spacing: 6) {
                 Text("Save to:")
                     .foregroundStyle(.secondary)
-                Text(model.outDir.lastPathComponent)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                    .help(model.outDir.path)
-                Button("Choose…") { model.chooseFolder() }
-                    .controlSize(.small)
+                Button {
+                    model.chooseFolder()
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "folder")
+                        Text(model.displayPath)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                        Image(systemName: "chevron.up.chevron.down")
+                            .imageScale(.small)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .help("Choose download folder")
                 Spacer()
                 Button("Quit") { NSApp.terminate(nil) }
                     .buttonStyle(.plain)
@@ -141,6 +151,15 @@ final class Model: ObservableObject {
 
     private var proc: Process?
     private var cancelled = false
+
+    /// Full path with home shown as ~, e.g. "~/music/samples".
+    var displayPath: String {
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        let path = outDir.path
+        return path.hasPrefix(home)
+            ? "~" + path.dropFirst(home.count)
+            : path
+    }
 
     var phaseLabel: String {
         if converting { return "Converting to WAV…" }
