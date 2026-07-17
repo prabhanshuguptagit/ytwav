@@ -7,7 +7,10 @@ let package = Package(
     targets: [
         .executableTarget(
             name: "YtWav",
-            path: "Sources/YtWav"
+            path: "Sources/YtWav",
+            linkerSettings: [
+                .linkedFramework("Carbon") // RegisterEventHotKey (global ⇧⌘Y)
+            ]
         )
     ]
 )

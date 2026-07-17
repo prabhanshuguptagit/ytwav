@@ -46,6 +46,9 @@ struct PanelView: View {
                 .controlSize(.small)
                 .help("Choose download folder")
                 Spacer()
+                Text("⇧⌘Y")
+                    .foregroundStyle(.tertiary)
+                    .help("⇧⌘Y opens this panel from anywhere")
                 Button("Quit") { NSApp.terminate(nil) }
                     .buttonStyle(.plain)
                     .foregroundStyle(.secondary)
@@ -151,6 +154,7 @@ final class Model: ObservableObject {
 
     private var proc: Process?
     private var cancelled = false
+    private let hotKey = GlobalHotKey() // ⇧⌘Y opens the panel from anywhere
 
     /// Full path with home shown as ~, e.g. "~/music/samples".
     var displayPath: String {
@@ -178,6 +182,20 @@ final class Model: ObservableObject {
         } else {
             outDir = FileManager.default.homeDirectoryForCurrentUser
                 .appendingPathComponent("Downloads")
+        }
+        hotKey.onPress = { Self.togglePanel() }
+    }
+
+    /// Open/close the MenuBarExtra panel by clicking its status item.
+    /// (No public API for this yet — the status item lives on a private
+    /// NSStatusBarWindow, reached via KVC. Standard workaround.)
+    static func togglePanel() {
+        for window in NSApp.windows
+        where String(describing: type(of: window)).contains("NSStatusBarWindow") {
+            guard let item = window.value(forKey: "statusItem") as? NSStatusItem else { continue }
+            NSApp.activate(ignoringOtherApps: true)
+            item.button?.performClick(nil)
+            return
         }
     }
 
