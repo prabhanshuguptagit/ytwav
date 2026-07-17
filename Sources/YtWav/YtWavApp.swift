@@ -25,7 +25,7 @@ struct PanelView: View {
             HStack(spacing: 10) {
                 Spacer()
                 Button {
-                    withAnimation(.easeInOut(duration: 0.15)) { showInfo.toggle() }
+                    showInfo.toggle()
                 } label: {
                     HStack(spacing: 3) {
                         Image(systemName: "info.circle")
@@ -51,6 +51,7 @@ struct PanelView: View {
                         .foregroundStyle(.secondary)
                 }
                 .font(.caption)
+                .fixedSize(horizontal: false, vertical: true)
                 .padding(10)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(.quaternary, in: RoundedRectangle(cornerRadius: 6))
