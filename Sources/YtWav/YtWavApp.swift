@@ -6,7 +6,7 @@ struct YtWavApp: App {
     @StateObject private var model = Model()
 
     var body: some Scene {
-        MenuBarExtra {
+        MenuBarExtra(isInserted: $model.showIcon) {
             PanelView()
                 .environmentObject(model)
         } label: {
@@ -46,6 +46,14 @@ struct PanelView: View {
                     Text("Paste a YouTube URL and hit Download WAV (or ⏎).")
                     Text("The WAV is saved to your chosen folder and copied to the clipboard — ⌘V or drag the file into Finder.")
                     Text("⇧⌘Y opens this panel from anywhere.")
+                    Divider()
+                    Toggle("Show icon in menu bar", isOn: $model.showIcon)
+                        .toggleStyle(.switch)
+                        .controlSize(.mini)
+                    if !model.showIcon {
+                        Text("Icon hidden — press ⇧⌘Y to bring it back.")
+                            .foregroundStyle(.secondary)
+                    }
                     Divider()
                     Text("Needs yt-dlp_macos in ~/.local/bin (and ffmpeg for WAV conversion). If downloads break, update with: yt-dlp_macos -U")
                         .foregroundStyle(.secondary)
@@ -210,7 +218,12 @@ final class Model: ObservableObject {
         didSet { UserDefaults.standard.set(outDir.path, forKey: "outDir") }
     }
 
+    @Published var showIcon: Bool {
+        didSet { UserDefaults.standard.set(showIcon, forKey: "showIcon") }
+    }
+
     init() {
+        showIcon = UserDefaults.standard.object(forKey: "showIcon") as? Bool ?? true
         if let saved = UserDefaults.standard.string(forKey: "outDir"),
            FileManager.default.fileExists(atPath: saved) {
             outDir = URL(fileURLWithPath: saved)
@@ -219,8 +232,17 @@ final class Model: ObservableObject {
                 .appendingPathComponent("Downloads")
         }
         hotKey.onPress = { [weak self] in
-            self?.prefillFromClipboard()
-            Self.togglePanel()
+            guard let self else { return }
+            self.prefillFromClipboard()
+            if self.showIcon {
+                Self.togglePanel()
+            } else {
+                // Icon is hidden: re-insert it, then open once it exists.
+                self.showIcon = true
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                    Self.togglePanel()
+                }
+            }
         }
     }
 
