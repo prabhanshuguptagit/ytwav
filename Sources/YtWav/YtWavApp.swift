@@ -21,35 +21,40 @@ struct PanelView: View {
     @State private var showInfo = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 10) {
                 Spacer()
                 Button {
-                    showInfo.toggle()
+                    withAnimation(.easeInOut(duration: 0.15)) { showInfo.toggle() }
                 } label: {
-                    Image(systemName: "info.circle")
+                    HStack(spacing: 3) {
+                        Image(systemName: "info.circle")
+                        Image(systemName: showInfo ? "chevron.up" : "chevron.down")
+                            .imageScale(.small)
+                    }
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(.secondary)
-                .popover(isPresented: $showInfo, arrowEdge: .bottom) {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("How to use").font(.headline)
-                        Text("Paste a YouTube URL and hit Download WAV (or ⏎).")
-                        Text("The WAV is saved to your chosen folder and copied to the clipboard — ⌘V it into Finder, or drag the file chip into Ableton, UVR, etc.")
-                        Text("⇧⌘Y opens this panel from anywhere.")
-                        Divider()
-                        Text("Needs yt-dlp_macos in ~/.local/bin (and ffmpeg for WAV conversion). If downloads break, update with: yt-dlp_macos -U")
-                            .foregroundStyle(.secondary)
-                    }
-                    .font(.caption)
-                    .frame(width: 260, alignment: .leading)
-                    .padding(12)
-                }
                 Button("Quit") { NSApp.terminate(nil) }
                     .buttonStyle(.plain)
                     .foregroundStyle(.secondary)
             }
             .font(.caption)
+
+            if showInfo {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Paste a YouTube URL and hit Download WAV (or ⏎).")
+                    Text("The WAV is saved to your chosen folder and copied to the clipboard — ⌘V it into Finder, or drag the file chip into Ableton, UVR, etc.")
+                    Text("⇧⌘Y opens this panel from anywhere.")
+                    Divider()
+                    Text("Needs yt-dlp_macos in ~/.local/bin (and ffmpeg for WAV conversion). If downloads break, update with: yt-dlp_macos -U")
+                        .foregroundStyle(.secondary)
+                }
+                .font(.caption)
+                .padding(10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(.quaternary, in: RoundedRectangle(cornerRadius: 6))
+            }
 
             TextField("YouTube URL", text: $model.url)
                 .textFieldStyle(.roundedBorder)
