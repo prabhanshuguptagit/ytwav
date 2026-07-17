@@ -252,7 +252,12 @@ final class Model: ObservableObject {
         guard !busy,
               let text = NSPasteboard.general.string(forType: .string)?
                   .trimmingCharacters(in: .whitespacesAndNewlines),
-              let parsed = URL(string: text),
+              !text.isEmpty,
+              // A URL is one token — clipboard sentences that merely contain
+              // a link don't count. (macOS 14's URL(string:) is lenient and
+              // would happily percent-encode the spaces.)
+              text.rangeOfCharacter(from: .whitespacesAndNewlines) == nil,
+              let parsed = URL(string: text, encodingInvalidCharacters: false),
               parsed.scheme == "http" || parsed.scheme == "https",
               parsed.host != nil
         else { return }
@@ -299,6 +304,11 @@ final class Model: ObservableObject {
     func download() {
         let link = url.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !link.isEmpty, !busy else { return }
+        guard link.rangeOfCharacter(from: .whitespacesAndNewlines) == nil else {
+            failed = true
+            status = "That doesn't look like a URL."
+            return
+        }
         guard let bin = Self.findYtDlp() else {
             failed = true
             status = "yt-dlp not found. See README: put yt-dlp_macos in ~/.local/bin."
@@ -324,6 +334,7 @@ final class Model: ObservableObject {
                 "-x", "--audio-format", "wav",
                 "--no-playlist",
                 "--newline",
+                "--socket-timeout", "15",
                 "-P", self.outDir.path,
                 "-o", "%(title)s.%(ext)s",
                 "--print-to-file", "after_move:filepath", pathFile.path,
