@@ -4,6 +4,8 @@ Tiny macOS menu bar app: paste a YouTube URL, get a WAV in `~/Downloads`, with t
 
 ## Install yt-dlp
 
+This app is a thin GUI over [yt-dlp](https://github.com/yt-dlp/yt-dlp). Grab the `yt-dlp_macos` binary from its [releases page](https://github.com/yt-dlp/yt-dlp/releases/latest).
+
 The app looks for `yt-dlp_macos` in `~/.local/bin` (recommended), `/usr/local/bin`, `/opt/homebrew/bin`, `~/bin`, or `~/Downloads` (and falls back to plain `yt-dlp`).
 
 Recommended: `~/.local/bin` — user-owned, so installing and self-updating (`yt-dlp_macos -U`) need no sudo:
