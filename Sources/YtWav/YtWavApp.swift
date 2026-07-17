@@ -21,7 +21,7 @@ struct PanelView: View {
     @State private var showInfo = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 18) {
             HStack(spacing: 10) {
                 Spacer()
                 Button {
@@ -44,7 +44,7 @@ struct PanelView: View {
             if showInfo {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Paste a YouTube URL and hit Download WAV (or ⏎).")
-                    Text("The WAV is saved to your chosen folder and copied to the clipboard — ⌘V it into Finder, or drag the file chip into Ableton, UVR, etc.")
+                    Text("The WAV is saved to your chosen folder and copied to the clipboard — ⌘V or drag the file into Finder.")
                     Text("⇧⌘Y opens this panel from anywhere.")
                     Divider()
                     Text("Needs yt-dlp_macos in ~/.local/bin (and ffmpeg for WAV conversion). If downloads break, update with: yt-dlp_macos -U")
@@ -57,10 +57,15 @@ struct PanelView: View {
                 .background(.quaternary, in: RoundedRectangle(cornerRadius: 6))
             }
 
-            TextField("YouTube URL", text: $model.url)
-                .textFieldStyle(.roundedBorder)
-                .onSubmit { model.download() }
-                .disabled(model.busy)
+            VStack(alignment: .leading, spacing: 4) {
+                Text("YouTube URL")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                TextField("https://…", text: $model.url)
+                    .textFieldStyle(.roundedBorder)
+                    .onSubmit { model.download() }
+                    .disabled(model.busy)
+            }
 
             HStack(spacing: 6) {
                 Text("Save to:")
@@ -145,7 +150,7 @@ struct PanelView: View {
                 .onDrag {
                     NSItemProvider(contentsOf: file) ?? NSItemProvider()
                 }
-                .help("Drag into Finder, Ableton, UVR…")
+                .help("Drag into Finder…")
             }
 
             if !model.log.isEmpty {
@@ -213,7 +218,22 @@ final class Model: ObservableObject {
             outDir = FileManager.default.homeDirectoryForCurrentUser
                 .appendingPathComponent("Downloads")
         }
-        hotKey.onPress = { Self.togglePanel() }
+        hotKey.onPress = { [weak self] in
+            self?.prefillFromClipboard()
+            Self.togglePanel()
+        }
+    }
+
+    /// If the clipboard holds a valid http(s) URL, drop it into the field.
+    private func prefillFromClipboard() {
+        guard !busy,
+              let text = NSPasteboard.general.string(forType: .string)?
+                  .trimmingCharacters(in: .whitespacesAndNewlines),
+              let parsed = URL(string: text),
+              parsed.scheme == "http" || parsed.scheme == "https",
+              parsed.host != nil
+        else { return }
+        url = text
     }
 
     /// Open/close the MenuBarExtra panel by clicking its status item.
