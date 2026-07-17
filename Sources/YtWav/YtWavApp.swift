@@ -247,19 +247,13 @@ final class Model: ObservableObject {
         }
     }
 
-    /// If the clipboard holds a valid http(s) URL, drop it into the field.
+    /// If the clipboard looks like a URL (one token, starts with http), paste it in.
     private func prefillFromClipboard() {
         guard !busy,
               let text = NSPasteboard.general.string(forType: .string)?
                   .trimmingCharacters(in: .whitespacesAndNewlines),
-              !text.isEmpty,
-              // A URL is one token — clipboard sentences that merely contain
-              // a link don't count. (macOS 14's URL(string:) is lenient and
-              // would happily percent-encode the spaces.)
-              text.rangeOfCharacter(from: .whitespacesAndNewlines) == nil,
-              let parsed = URL(string: text, encodingInvalidCharacters: false),
-              parsed.scheme == "http" || parsed.scheme == "https",
-              parsed.host != nil
+              text.hasPrefix("http"),
+              !text.contains(" ")
         else { return }
         url = text
     }
@@ -304,11 +298,6 @@ final class Model: ObservableObject {
     func download() {
         let link = url.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !link.isEmpty, !busy else { return }
-        guard link.rangeOfCharacter(from: .whitespacesAndNewlines) == nil else {
-            failed = true
-            status = "That doesn't look like a URL."
-            return
-        }
         guard let bin = Self.findYtDlp() else {
             failed = true
             status = "yt-dlp not found. See README: put yt-dlp_macos in ~/.local/bin."
