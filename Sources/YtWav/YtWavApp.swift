@@ -72,7 +72,6 @@ struct PanelView: View {
                 TextField("https://…", text: $model.url)
                     .textFieldStyle(.roundedBorder)
                     .onSubmit { model.download() }
-                    .disabled(model.busy)
             }
 
             HStack(spacing: 6) {
@@ -99,21 +98,14 @@ struct PanelView: View {
             .font(.caption)
 
             if model.busy {
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack(spacing: 8) {
-                        if let progress = model.progress {
-                            ProgressView(value: progress, total: 100)
-                        } else {
-                            ProgressView()
-                                .progressViewStyle(.linear)
-                        }
-                        Button("Cancel") { model.cancel() }
-                            .controlSize(.small)
-                    }
+                HStack(spacing: 8) {
+                    ProgressView()
+                        .controlSize(.small)
                     Text(model.phaseLabel)
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                        .monospacedDigit()
+                    Spacer()
+                    Button("Cancel") { model.cancel() }
                 }
             } else {
                 Button {
@@ -129,11 +121,23 @@ struct PanelView: View {
             }
 
             if !model.status.isEmpty {
-                Label(model.status, systemImage: model.failed ? "xmark.circle.fill" : "checkmark.circle.fill")
-                    .font(.caption)
-                    .foregroundStyle(model.failed ? Color.red : Color.green)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .textSelection(.enabled)
+                HStack(alignment: .top, spacing: 6) {
+                    Label(model.status, systemImage: model.failed ? "xmark.circle.fill" : "checkmark.circle.fill")
+                        .foregroundStyle(model.failed ? Color.red : Color.green)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .textSelection(.enabled)
+                    if let file = model.lastFile, !model.failed {
+                        Button {
+                            NSWorkspace.shared.activateFileViewerSelecting([file])
+                        } label: {
+                            Image(systemName: "folder")
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(.secondary)
+                        .help("Show in Finder")
+                    }
+                }
+                .font(.caption)
             }
 
             // Drag this into Finder, Ableton, UVR, etc.
@@ -144,13 +148,13 @@ struct PanelView: View {
                         .fixedSize(horizontal: false, vertical: true)
                     Spacer(minLength: 4)
                     Button {
-                        NSWorkspace.shared.activateFileViewerSelecting([file])
+                        model.copyToClipboard(file)
                     } label: {
-                        Image(systemName: "folder")
+                        Image(systemName: "doc.on.clipboard")
                     }
                     .buttonStyle(.plain)
                     .foregroundStyle(.secondary)
-                    .help("Show in Finder")
+                    .help("Copy file to clipboard")
                 }
                 .font(.caption)
                 .padding(8)
@@ -191,7 +195,6 @@ final class Model: ObservableObject {
     @Published var log = ""
     @Published var busy = false
     @Published var failed = false
-    @Published var progress: Double?   // 0-100 while downloading, nil when unknown
     @Published var converting = false
     @Published var lastFile: URL?
 
@@ -209,9 +212,7 @@ final class Model: ObservableObject {
     }
 
     var phaseLabel: String {
-        if converting { return "Converting to WAV…" }
-        if let p = progress { return "Downloading… \(Int(p))%" }
-        return "Starting…"
+        converting ? "Converting to WAV…" : "Downloading…"
     }
 
     @Published var outDir: URL {
@@ -284,6 +285,12 @@ final class Model: ObservableObject {
         }
     }
 
+    func copyToClipboard(_ file: URL) {
+        let pb = NSPasteboard.general
+        pb.clearContents()
+        pb.writeObjects([file as NSURL])
+    }
+
     func cancel() {
         cancelled = true
         proc?.terminate()
@@ -300,7 +307,6 @@ final class Model: ObservableObject {
         busy = true
         failed = false
         cancelled = false
-        progress = nil
         converting = false
         status = ""
         log = "$ \(bin) \(link)\n"
@@ -365,9 +371,7 @@ final class Model: ObservableObject {
 
             DispatchQueue.main.async {
                 let fileURL = URL(fileURLWithPath: path)
-                let pb = NSPasteboard.general
-                pb.clearContents()
-                pb.writeObjects([fileURL as NSURL])
+                self.copyToClipboard(fileURL)
                 self.busy = false
                 self.lastFile = fileURL
                 self.status = "Saved \(fileURL.lastPathComponent) — copied to clipboard"
@@ -377,23 +381,20 @@ final class Model: ObservableObject {
     }
 
     private func appendLog(_ text: String) {
-        log += text
+        for rawLine in text.split(separator: "\n", omittingEmptySubsequences: true) {
+            let line = String(rawLine)
+            if line.hasPrefix("[ExtractAudio]") { converting = true }
+            // Skip the per-chunk progress spam ("[download]  42.3% of ...");
+            // keep the final 100% summary line.
+            if line.range(of: #"^\[download\]\s+[\d.]+%"#, options: .regularExpression) != nil,
+               !line.contains("100% of") {
+                continue
+            }
+            log += line + "\n"
+        }
         // Keep the log from growing unbounded.
         if log.count > 20_000 {
             log = String(log.suffix(10_000))
-        }
-        // Parse progress: "[download]  42.3% of ..."
-        for line in text.split(separator: "\n") {
-            if line.hasPrefix("[ExtractAudio]") {
-                converting = true
-                progress = nil
-            } else if let range = line.range(of: #"\[download\]\s+([\d.]+)%"#, options: .regularExpression) {
-                let pct = line[range].split(separator: " ").last?.dropLast()
-                if let pct, let value = Double(pct) {
-                    converting = false
-                    progress = value
-                }
-            }
         }
     }
 
