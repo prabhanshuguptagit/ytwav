@@ -18,9 +18,39 @@ struct YtWavApp: App {
 
 struct PanelView: View {
     @EnvironmentObject var model: Model
+    @State private var showInfo = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 10) {
+                Spacer()
+                Button {
+                    showInfo.toggle()
+                } label: {
+                    Image(systemName: "info.circle")
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.secondary)
+                .popover(isPresented: $showInfo, arrowEdge: .bottom) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("How to use").font(.headline)
+                        Text("Paste a YouTube URL and hit Download WAV (or ⏎).")
+                        Text("The WAV is saved to your chosen folder and copied to the clipboard — ⌘V it into Finder, or drag the file chip into Ableton, UVR, etc.")
+                        Text("⇧⌘Y opens this panel from anywhere.")
+                        Divider()
+                        Text("Needs yt-dlp_macos in ~/.local/bin (and ffmpeg for WAV conversion). If downloads break, update with: yt-dlp_macos -U")
+                            .foregroundStyle(.secondary)
+                    }
+                    .font(.caption)
+                    .frame(width: 260, alignment: .leading)
+                    .padding(12)
+                }
+                Button("Quit") { NSApp.terminate(nil) }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.secondary)
+            }
+            .font(.caption)
+
             TextField("YouTube URL", text: $model.url)
                 .textFieldStyle(.roundedBorder)
                 .onSubmit { model.download() }
@@ -46,12 +76,6 @@ struct PanelView: View {
                 .controlSize(.small)
                 .help("Choose download folder")
                 Spacer()
-                Text("⇧⌘Y")
-                    .foregroundStyle(.tertiary)
-                    .help("⇧⌘Y opens this panel from anywhere")
-                Button("Quit") { NSApp.terminate(nil) }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(.secondary)
             }
             .font(.caption)
 
