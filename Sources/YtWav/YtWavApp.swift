@@ -4,15 +4,8 @@ import AppKit
 @main
 struct YtWavApp: App {
     @StateObject private var model = Model()
-    // @AppStorage, not a @Published model property: MenuBarExtra(isInserted:)
-    // writes the binding on every update, and @Published fires objectWillChange
-    // even for same-value writes -> infinite re-render loop.
-    // Separate from the "showIcon" preference so hiding can wait until the
-    // panel closes (removing the status item kills its open window).
-    @AppStorage("iconInserted") private var iconInserted = true
-
     var body: some Scene {
-        MenuBarExtra(isInserted: $iconInserted) {
+        MenuBarExtra {
             PanelView()
                 .environmentObject(model)
         } label: {
@@ -25,9 +18,6 @@ struct YtWavApp: App {
 struct PanelView: View {
     @EnvironmentObject var model: Model
     @State private var showInfo = false
-    @AppStorage("showIcon") private var showIcon = true
-    @AppStorage("iconInserted") private var iconInserted = true
-
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             HStack(spacing: 10) {
@@ -54,14 +44,6 @@ struct PanelView: View {
                     Text("Paste a YouTube URL and hit Download WAV (or ⏎).")
                     Text("The WAV is saved to your chosen folder and copied to the clipboard — ⌘V or drag the file into Finder.")
                     Text("⇧⌘Y opens this panel from anywhere.")
-                    Divider()
-                    Toggle("Show icon in menu bar", isOn: $showIcon)
-                        .toggleStyle(.switch)
-                        .controlSize(.mini)
-                    if !showIcon {
-                        Text("Icon hides when you close this panel — ⇧⌘Y brings it back.")
-                            .foregroundStyle(.secondary)
-                    }
                     Divider()
                     Text("Needs yt-dlp_macos in ~/.local/bin (and ffmpeg for WAV conversion). If downloads break, update with: yt-dlp_macos -U")
                         .foregroundStyle(.secondary)
@@ -194,20 +176,6 @@ struct PanelView: View {
         }
         .padding(12)
         .frame(width: 360)
-        .onAppear {
-            if showIcon { iconInserted = true }
-        }
-        // Apply a pending "hide icon" when the panel closes. (onDisappear
-        // doesn't fire — the window is ordered out, the view stays alive —
-        // so watch the panel window resigning key instead.)
-        .onReceive(NotificationCenter.default.publisher(
-            for: NSWindow.didResignKeyNotification)) { note in
-            guard !showIcon,
-                  let window = note.object as? NSWindow,
-                  String(describing: type(of: window)).contains("MenuBarExtra")
-            else { return }
-            iconInserted = false
-        }
     }
 }
 
@@ -251,18 +219,7 @@ final class Model: ObservableObject {
         }
         hotKey.onPress = { [weak self] in
             self?.prefillFromClipboard()
-            let inserted = UserDefaults.standard.object(forKey: "iconInserted") as? Bool ?? true
-            if inserted {
-                Self.togglePanel()
-            } else {
-                // Icon is hidden: re-insert it (AppStorage picks this up),
-                // then open once the status item exists.
-                UserDefaults.standard.set(true, forKey: "showIcon")
-                UserDefaults.standard.set(true, forKey: "iconInserted")
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                    Self.togglePanel()
-                }
-            }
+            Self.togglePanel()
         }
     }
 
