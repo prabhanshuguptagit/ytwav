@@ -7,10 +7,12 @@ struct YtWavApp: App {
     // @AppStorage, not a @Published model property: MenuBarExtra(isInserted:)
     // writes the binding on every update, and @Published fires objectWillChange
     // even for same-value writes -> infinite re-render loop.
-    @AppStorage("showIcon") private var showIcon = true
+    // Separate from the "showIcon" preference so hiding can wait until the
+    // panel closes (removing the status item kills its open window).
+    @AppStorage("iconInserted") private var iconInserted = true
 
     var body: some Scene {
-        MenuBarExtra(isInserted: $showIcon) {
+        MenuBarExtra(isInserted: $iconInserted) {
             PanelView()
                 .environmentObject(model)
         } label: {
@@ -24,6 +26,7 @@ struct PanelView: View {
     @EnvironmentObject var model: Model
     @State private var showInfo = false
     @AppStorage("showIcon") private var showIcon = true
+    @AppStorage("iconInserted") private var iconInserted = true
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
@@ -56,7 +59,7 @@ struct PanelView: View {
                         .toggleStyle(.switch)
                         .controlSize(.mini)
                     if !showIcon {
-                        Text("Icon hidden — press ⇧⌘Y to bring it back.")
+                        Text("Icon hides when you close this panel — ⇧⌘Y brings it back.")
                             .foregroundStyle(.secondary)
                     }
                     Divider()
@@ -126,7 +129,7 @@ struct PanelView: View {
             }
 
             if !model.status.isEmpty {
-                HStack(alignment: .top, spacing: 6) {
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
                     Label(model.status, systemImage: model.failed ? "xmark.circle.fill" : "checkmark.circle.fill")
                         .foregroundStyle(model.failed ? Color.red : Color.green)
                         .fixedSize(horizontal: false, vertical: true)
@@ -191,6 +194,13 @@ struct PanelView: View {
         }
         .padding(12)
         .frame(width: 360)
+        .onDisappear {
+            // Apply a pending "hide icon" once the panel closes.
+            if !showIcon { iconInserted = false }
+        }
+        .onAppear {
+            if showIcon { iconInserted = true }
+        }
     }
 }
 
@@ -234,13 +244,14 @@ final class Model: ObservableObject {
         }
         hotKey.onPress = { [weak self] in
             self?.prefillFromClipboard()
-            let iconShown = UserDefaults.standard.object(forKey: "showIcon") as? Bool ?? true
-            if iconShown {
+            let inserted = UserDefaults.standard.object(forKey: "iconInserted") as? Bool ?? true
+            if inserted {
                 Self.togglePanel()
             } else {
                 // Icon is hidden: re-insert it (AppStorage picks this up),
                 // then open once the status item exists.
                 UserDefaults.standard.set(true, forKey: "showIcon")
+                UserDefaults.standard.set(true, forKey: "iconInserted")
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                     Self.togglePanel()
                 }
