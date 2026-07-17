@@ -194,12 +194,19 @@ struct PanelView: View {
         }
         .padding(12)
         .frame(width: 360)
-        .onDisappear {
-            // Apply a pending "hide icon" once the panel closes.
-            if !showIcon { iconInserted = false }
-        }
         .onAppear {
             if showIcon { iconInserted = true }
+        }
+        // Apply a pending "hide icon" when the panel closes. (onDisappear
+        // doesn't fire — the window is ordered out, the view stays alive —
+        // so watch the panel window resigning key instead.)
+        .onReceive(NotificationCenter.default.publisher(
+            for: NSWindow.didResignKeyNotification)) { note in
+            guard !showIcon,
+                  let window = note.object as? NSWindow,
+                  String(describing: type(of: window)).contains("MenuBarExtra")
+            else { return }
+            iconInserted = false
         }
     }
 }
