@@ -4,9 +4,13 @@ import AppKit
 @main
 struct YtWavApp: App {
     @StateObject private var model = Model()
+    // @AppStorage, not a @Published model property: MenuBarExtra(isInserted:)
+    // writes the binding on every update, and @Published fires objectWillChange
+    // even for same-value writes -> infinite re-render loop.
+    @AppStorage("showIcon") private var showIcon = true
 
     var body: some Scene {
-        MenuBarExtra(isInserted: $model.showIcon) {
+        MenuBarExtra(isInserted: $showIcon) {
             PanelView()
                 .environmentObject(model)
         } label: {
@@ -19,6 +23,7 @@ struct YtWavApp: App {
 struct PanelView: View {
     @EnvironmentObject var model: Model
     @State private var showInfo = false
+    @AppStorage("showIcon") private var showIcon = true
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
@@ -47,10 +52,10 @@ struct PanelView: View {
                     Text("The WAV is saved to your chosen folder and copied to the clipboard — ⌘V or drag the file into Finder.")
                     Text("⇧⌘Y opens this panel from anywhere.")
                     Divider()
-                    Toggle("Show icon in menu bar", isOn: $model.showIcon)
+                    Toggle("Show icon in menu bar", isOn: $showIcon)
                         .toggleStyle(.switch)
                         .controlSize(.mini)
-                    if !model.showIcon {
+                    if !showIcon {
                         Text("Icon hidden — press ⇧⌘Y to bring it back.")
                             .foregroundStyle(.secondary)
                     }
@@ -219,12 +224,7 @@ final class Model: ObservableObject {
         didSet { UserDefaults.standard.set(outDir.path, forKey: "outDir") }
     }
 
-    @Published var showIcon: Bool {
-        didSet { UserDefaults.standard.set(showIcon, forKey: "showIcon") }
-    }
-
     init() {
-        showIcon = UserDefaults.standard.object(forKey: "showIcon") as? Bool ?? true
         if let saved = UserDefaults.standard.string(forKey: "outDir"),
            FileManager.default.fileExists(atPath: saved) {
             outDir = URL(fileURLWithPath: saved)
@@ -233,13 +233,14 @@ final class Model: ObservableObject {
                 .appendingPathComponent("Downloads")
         }
         hotKey.onPress = { [weak self] in
-            guard let self else { return }
-            self.prefillFromClipboard()
-            if self.showIcon {
+            self?.prefillFromClipboard()
+            let iconShown = UserDefaults.standard.object(forKey: "showIcon") as? Bool ?? true
+            if iconShown {
                 Self.togglePanel()
             } else {
-                // Icon is hidden: re-insert it, then open once it exists.
-                self.showIcon = true
+                // Icon is hidden: re-insert it (AppStorage picks this up),
+                // then open once the status item exists.
+                UserDefaults.standard.set(true, forKey: "showIcon")
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                     Self.togglePanel()
                 }
